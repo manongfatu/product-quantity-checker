@@ -17,6 +17,7 @@ export default function ResultsTable({ items }: ResultsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [copied, setCopied] = useState(false);
+  const [copiedColumn, setCopiedColumn] = useState<null | "name" | "container" | "scent" | "quantity">(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -76,6 +77,42 @@ export default function ResultsTable({ items }: ResultsTableProps) {
     document.execCommand("copy");
     sel?.removeAllRanges();
     document.body.removeChild(container);
+  };
+
+  const copyColumn = async (key: "name" | "container" | "scent" | "quantity") => {
+    const values = sorted.map((item) => {
+      const { baseName, container, scent } = parseNameParts(item.name);
+      const v = key === "name" ? baseName : key === "container" ? container : key === "scent" ? scent : String(item.quantity);
+      return sanitizeCell(v);
+    });
+    const tsv = values.join("\n");
+    const html = `<table><tbody>${values.map((v) => `<tr><td>${escapeHtml(v)}</td></tr>`).join("")}</tbody></table>`;
+    try {
+      if ("clipboard" in navigator && "write" in navigator.clipboard && "ClipboardItem" in window) {
+        const entry = new (window as unknown as { ClipboardItem: typeof ClipboardItem }).ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([tsv], { type: "text/plain" })
+        });
+        await navigator.clipboard.write([entry]);
+      } else {
+        copyHtmlFallback(html);
+      }
+    } catch {
+      try {
+        copyHtmlFallback(html);
+      } catch {
+        const ta = document.createElement("textarea");
+        ta.value = tsv;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+    }
+    setCopiedColumn(key);
+    window.setTimeout(() => setCopiedColumn(null), 2000);
   };
 
   const handleCopy = async () => {
@@ -163,10 +200,39 @@ export default function ResultsTable({ items }: ResultsTableProps) {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <Th active={sortKey === "name"} direction={sortDir} onClick={() => setSort("name")} label="Product Name" />
-              <Th active={false} direction={"asc"} onClick={() => {}} label="Container" />
-              <Th active={false} direction={"asc"} onClick={() => {}} label="Scent" />
-              <Th align="right" active={sortKey === "quantity"} direction={sortDir} onClick={() => setSort("quantity")} label="Quantity" />
+              <Th
+                active={sortKey === "name"}
+                direction={sortDir}
+                onClick={() => setSort("name")}
+                label="Product Name"
+                onCopy={() => copyColumn("name")}
+                copied={copiedColumn === "name"}
+              />
+              <Th
+                active={false}
+                direction={"asc"}
+                onClick={() => {}}
+                label="Container"
+                onCopy={() => copyColumn("container")}
+                copied={copiedColumn === "container"}
+              />
+              <Th
+                active={false}
+                direction={"asc"}
+                onClick={() => {}}
+                label="Scent"
+                onCopy={() => copyColumn("scent")}
+                copied={copiedColumn === "scent"}
+              />
+              <Th
+                align="right"
+                active={sortKey === "quantity"}
+                direction={sortDir}
+                onClick={() => setSort("quantity")}
+                label="Quantity"
+                onCopy={() => copyColumn("quantity")}
+                copied={copiedColumn === "quantity"}
+              />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -188,23 +254,50 @@ export default function ResultsTable({ items }: ResultsTableProps) {
   );
 }
 
-function Th({ label, onClick, active, direction, align = "left" }: { label: string; onClick: () => void; active: boolean; direction: SortDir; align?: "left" | "right" }) {
+function Th({
+  label,
+  onClick,
+  active,
+  direction,
+  align = "left",
+  onCopy,
+  copied
+}: {
+  label: string;
+  onClick: () => void;
+  active: boolean;
+  direction: SortDir;
+  align?: "left" | "right";
+  onCopy?: () => void;
+  copied?: boolean;
+}) {
   return (
     <th className={clsx("px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-600", align === "right" ? "text-right" : "text-left")}>
-      <button onClick={onClick} className="group inline-flex items-center gap-1">
-        <span>{label}</span>
-        <span className={clsx("transition", active ? "text-gray-900" : "text-gray-400 group-hover:text-gray-600")}>
-          {active ? (
-            direction === "asc" ? (
-              <ArrowUp />
-            ) : (
-              <ArrowDown />
-            )
-          ) : (
-            <SortIcon />
-          )}
-        </span>
-      </button>
+      <div className="flex items-center gap-2">
+        <button onClick={onClick} className="group inline-flex items-center gap-1">
+          <span>{label}</span>
+          <span className={clsx("transition", active ? "text-gray-900" : "text-gray-400 group-hover:text-gray-600")}>
+            {active ? (direction === "asc" ? <ArrowUp /> : <ArrowDown />) : <SortIcon />}
+          </span>
+        </button>
+        {onCopy && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCopy();
+            }}
+            className="inline-flex items-center gap-1 rounded border border-gray-300 px-2 py-0.5 text-[10px] font-medium text-gray-700 hover:bg-gray-50"
+            title={`Copy ${label} column`}
+          >
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M16 1H4c-1.1 0-2 .9-2 2v12h2V3h12V1z" />
+              <path d="M20 5H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h12v14z" />
+            </svg>
+            <span>{copied ? "Copied!" : "Copy"}</span>
+          </button>
+        )}
+      </div>
     </th>
   );
 }
