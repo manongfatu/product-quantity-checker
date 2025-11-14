@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { AggregatedItem } from "@/lib/aggregate";
+import { parseNameParts } from "@/lib/catalog";
 import clsx from "clsx";
 
 interface ResultsTableProps {
@@ -55,13 +56,9 @@ export default function ResultsTable({ items }: ResultsTableProps) {
 
   const sanitizeCell = (value: string) => value.replace(/\t/g, " ").replace(/\r?\n/g, " ").trim();
   const splitName = (full: string) => {
-    const parts = full.split(" - ").map((p) => p.trim());
-    const name = parts[0] ?? "";
-    const container = parts[1] ?? "";
-    const scent = parts.length > 3 ? parts.slice(2).join(" - ") : (parts[2] ?? "");
-    return [name, container, scent] as const;
+    const { baseName, container, scent } = parseNameParts(full);
+    return [baseName, container, scent] as const;
   };
-  const stripMarkers = (s: string) => s.replace(/\s*-\s*\*+\s*$/g, "").replace(/\*+/g, "").trim();
   const escapeHtml = (s: string) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   const copyHtmlFallback = (html: string) => {
@@ -84,13 +81,8 @@ export default function ResultsTable({ items }: ResultsTableProps) {
   const handleCopy = async () => {
     const headers = ["Product Name", "Container", "Scent", "Quantity"];
     const rows = sorted.map((item) => {
-      const [name, container, scent] = splitName(item.name);
-      return [
-        sanitizeCell(stripMarkers(name)),
-        sanitizeCell(stripMarkers(container)),
-        sanitizeCell(stripMarkers(scent)),
-        String(item.quantity)
-      ].join("\t");
+      const { baseName, container, scent } = parseNameParts(item.name);
+      return [sanitizeCell(baseName), sanitizeCell(container), sanitizeCell(scent), String(item.quantity)].join("\t");
     });
     const tsv = [headers.join("\t"), ...rows].join("\n");
     const html =
@@ -99,9 +91,9 @@ export default function ResultsTable({ items }: ResultsTableProps) {
       `</tr></thead><tbody>` +
       sorted
         .map((item) => {
-          const [name, container, scent] = splitName(item.name);
-          return `<tr><td>${escapeHtml(stripMarkers(name))}</td><td>${escapeHtml(stripMarkers(container))}</td><td>${escapeHtml(
-            stripMarkers(scent)
+          const { baseName, container, scent } = parseNameParts(item.name);
+          return `<tr><td>${escapeHtml(baseName)}</td><td>${escapeHtml(container)}</td><td>${escapeHtml(
+            scent
           )}</td><td style="text-align:right">${escapeHtml(String(item.quantity))}</td></tr>`;
         })
         .join("") +
@@ -179,12 +171,12 @@ export default function ResultsTable({ items }: ResultsTableProps) {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {sorted.map((item) => {
-              const [name, container, scent] = splitName(item.name);
+              const { baseName, container, scent } = parseNameParts(item.name);
               return (
                 <tr key={item.name} className="hover:bg-gray-50/60">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{stripMarkers(name)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{stripMarkers(container)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{stripMarkers(scent)}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{baseName}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{container}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{scent}</td>
                   <td className="px-4 py-3 text-right font-mono text-sm tabular-nums text-gray-900">{item.quantity}</td>
                 </tr>
               );

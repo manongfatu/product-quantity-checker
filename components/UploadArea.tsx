@@ -23,12 +23,11 @@ export default function UploadArea({ onData, onError }: UploadAreaProps) {
     setIsParsing(true);
     try {
       const { rows, headers } = await parseCsvFile(file, Papa);
-      const required = ["Lineitem name", "Lineitem quantity"];
-      const missing = required.filter(
-        (col) => !headers.some((h) => h.toLowerCase().trim() === col.toLowerCase())
-      );
-      if (missing.length) {
-        onError(`CSV is missing required columns: ${missing.join(", ")}`);
+      const lower = headers.map((h) => h.toLowerCase().trim());
+      const hasExplicit = ["product name", "container", "scent", "quantity"].every((c) => lower.includes(c));
+      const hasShopify = ["lineitem name", "lineitem quantity"].every((c) => lower.includes(c));
+      if (!hasExplicit && !hasShopify) {
+        onError("CSV is missing required columns. Provide either: Product Name, Container, Scent, Quantity OR Lineitem name, Lineitem quantity");
         return;
       }
       const data = aggregateTotals(rows, headers);
@@ -77,7 +76,7 @@ export default function UploadArea({ onData, onError }: UploadAreaProps) {
         <div className="text-sm text-gray-700">
           <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
         </div>
-        <div className="text-xs text-gray-500">CSV file with Lineitem name and Lineitem quantity</div>
+        <div className="text-xs text-gray-500">CSV with Product Name, Container, Scent, Quantity OR Lineitem name, Lineitem quantity</div>
         <input
           ref={inputRef}
           id="file"

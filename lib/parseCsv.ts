@@ -8,7 +8,7 @@ export async function parseCsvFile(file: File, Papa: typeof import("papaparse"))
     Papa.parse(file, {
       header: true,
       skipEmptyLines: "greedy",
-      dynamicTyping: (field) => typeof field === "string" && field.toLowerCase() === "lineitem quantity",
+      dynamicTyping: (field) => typeof field === "string" && field.toLowerCase() === "quantity",
       transformHeader: (h) => h.trim(),
       complete: (results) => {
         const headers = (results.meta.fields ?? []).map((h) => h.trim());
