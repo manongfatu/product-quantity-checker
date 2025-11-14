@@ -61,6 +61,7 @@ export default function ResultsTable({ items }: ResultsTableProps) {
     const scent = parts.length > 3 ? parts.slice(2).join(" - ") : (parts[2] ?? "");
     return [name, container, scent] as const;
   };
+  const stripMarkers = (s: string) => s.replace(/\s*-\s*\*+\s*$/g, "").replace(/\*+/g, "").trim();
   const escapeHtml = (s: string) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   const copyHtmlFallback = (html: string) => {
@@ -84,7 +85,12 @@ export default function ResultsTable({ items }: ResultsTableProps) {
     const headers = ["Product Name", "Container", "Scent", "Quantity"];
     const rows = sorted.map((item) => {
       const [name, container, scent] = splitName(item.name);
-      return [sanitizeCell(name), sanitizeCell(container), sanitizeCell(scent), String(item.quantity)].join("\t");
+      return [
+        sanitizeCell(stripMarkers(name)),
+        sanitizeCell(stripMarkers(container)),
+        sanitizeCell(stripMarkers(scent)),
+        String(item.quantity)
+      ].join("\t");
     });
     const tsv = [headers.join("\t"), ...rows].join("\n");
     const html =
@@ -94,8 +100,8 @@ export default function ResultsTable({ items }: ResultsTableProps) {
       sorted
         .map((item) => {
           const [name, container, scent] = splitName(item.name);
-          return `<tr><td>${escapeHtml(name)}</td><td>${escapeHtml(container)}</td><td>${escapeHtml(
-            scent
+          return `<tr><td>${escapeHtml(stripMarkers(name))}</td><td>${escapeHtml(stripMarkers(container))}</td><td>${escapeHtml(
+            stripMarkers(scent)
           )}</td><td style="text-align:right">${escapeHtml(String(item.quantity))}</td></tr>`;
         })
         .join("") +
@@ -176,9 +182,9 @@ export default function ResultsTable({ items }: ResultsTableProps) {
               const [name, container, scent] = splitName(item.name);
               return (
                 <tr key={item.name} className="hover:bg-gray-50/60">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{name}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{container}</td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{scent}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{stripMarkers(name)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{stripMarkers(container)}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900">{stripMarkers(scent)}</td>
                   <td className="px-4 py-3 text-right font-mono text-sm tabular-nums text-gray-900">{item.quantity}</td>
                 </tr>
               );
