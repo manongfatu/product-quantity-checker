@@ -47,8 +47,9 @@ export function extractContainerAndScentFromText(input: string): { container: st
   const cleaned = stripMarkers(removeLimitedRelease(input));
   const hasSlash = cleaned.includes("/");
   if (hasSlash) {
-    const [leftRaw, ...rest] = cleaned.split("/");
-    const rightRaw = rest.join("/");
+    const parts = cleaned.split("/");
+    const leftRaw = parts[0] ?? "";
+    const rightRaw = parts.slice(1).join("/");
     const left = leftRaw.trim();
     const right = rightRaw.trim();
     const container = findMatch(left, CONTAINERS);
